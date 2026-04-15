@@ -98,8 +98,8 @@ export default function WeekendScheduler() {
       const checkDate = new Date(year, month, d);
       const dayOfWeek = checkDate.getDay();
       const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      
-      if (dayOfWeek === 0 || dayOfWeek === 6 || holidays[dateKey]) {
+// 土日か祝日またはGWなら追加、または予定が入っていたら追加
+      if (dayOfWeek === 0 || dayOfWeek === 6 || holidays[dateKey] || schedules[`weekends:${dateKey}`]) {
         weekends.push({ date: checkDate, holiday: holidays[dateKey] });
       }
     }
@@ -1039,7 +1039,62 @@ export default function WeekendScheduler() {
           </div>
         </div>
       )}
-
+{/* バックアップボタン */}
+      <div className="sticky top-[160px] z-20 bg-white border-b border-amber-200 px-4 py-3">
+        <div className="mx-auto max-w-4xl flex gap-2">
+          <button
+            onClick={() => {
+              const data = {
+                schedules,
+                shoppingItems,
+                boardMessage,
+                exportDate: new Date().toLocaleString('ja-JP'),
+              };
+              const json = JSON.stringify(data, null, 2);
+              const blob = new Blob([json], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `family-scheduler-backup-${new Date().toISOString().split('T')[0]}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              showToast('バックアップをダウンロードしました ✓');
+            }}
+            className="rounded-lg bg-blue-500 text-white px-3 py-2 font-bold hover:bg-blue-600 transition text-xs sm:text-sm"
+          >
+            💾 バックアップ
+          </button>
+          
+          <label className="rounded-lg bg-green-500 text-white px-3 py-2 font-bold hover:bg-green-600 transition cursor-pointer text-xs sm:text-sm flex items-center gap-2">
+            📂 復元
+            <input
+              type="file"
+              accept=".json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  try {
+                    const data = JSON.parse(event.target?.result);
+                    setSchedules(data.schedules || {});
+                    setShoppingItems(data.shoppingItems || []);
+                    setBoardMessage(data.boardMessage || '');
+                    localStorage.setItem('family-scheduler-schedules', JSON.stringify(data.schedules || {}));
+                    localStorage.setItem('family-scheduler-shopping', JSON.stringify(data.shoppingItems || []));
+                    localStorage.setItem('family-scheduler-board', data.boardMessage || '');
+                    showToast('バックアップから復元しました ✓');
+                  } catch (error) {
+                    showToast('ファイルが正しくありません', 'error');
+                  }
+                };
+                reader.readAsText(file);
+              }}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </div>
       {/* トースト */}
       {toast && (
         <div
